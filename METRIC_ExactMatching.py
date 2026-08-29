@@ -20,12 +20,26 @@ from collections import defaultdict
 from tqdm import tqdm
 import json
 import time
+import hashlib
 
 # Configuration
 BASE_DIR = Path(__file__).parent
 _training_renamed = BASE_DIR / 'Training_renamed.npy'
 _training_default = BASE_DIR / 'Training.npy'
 TRAINING_NPY = _training_renamed if _training_renamed.exists() else _training_default
+LOG_FILE = BASE_DIR / 'METRIC_ExactMatching.log'
+CACHE_FILE = BASE_DIR / f"{TRAINING_NPY.stem}_ExactMatchingHashes.npy"
+
+
+def log_message(message):
+    """Write a message to both stdout and the log file."""
+    print(message)
+    try:
+        with open(LOG_FILE, 'a') as f:
+            f.write(message + '\n')
+    except Exception:
+        # Logging must never be the reason the metric crashes.
+        pass
 
 
 def parse_txt_file(file_path):
@@ -40,12 +54,24 @@ def parse_txt_file(file_path):
     """
     with open(file_path, 'r') as f:
         content = f.read().strip()
+
+    if not content:
+        raise ValueError("file is empty")
+
+    if '->' not in content:
+        raise ValueError("missing '->' delimiter")
     
     # Split by '->' and remove empty/whitespace
     tokens = [t.strip() for t in content.split('->') if t.strip()]
+
+    if not tokens:
+        raise ValueError("no tokens found after splitting")
     
     # Remove TRUNCATE tokens
     tokens = [t for t in tokens if t != 'TRUNCATE']
+
+    if not tokens:
+        raise ValueError("only TRUNCATE tokens found")
     
     return tuple(tokens)
 
@@ -78,61 +104,73 @@ def normalize_sequence(seq):
     return tuple(tokens)
 
 
+def hash_sequence(tokens):
+    """
+    Convert a token sequence into a stable 64-bit hash.
+
+    This is much smaller than storing the full sequence in RAM and is used for
+    streaming exact-match lookup.
+    """
+    joined = '\x1f'.join(tokens).encode('utf-8')
+    digest = hashlib.blake2b(joined, digest_size=8).digest()
+    return np.frombuffer(digest, dtype=np.uint64)[0]
+
+
+def load_training_hash_cache(training_npy_path):
+    """
+    Load the prebuilt hash cache used for exact matching.
+
+    This function is intentionally cache-only so the script can run on machines
+    with limited RAM. If the cache is missing, the user must build it on a
+    machine with enough memory first.
+    """
+    log_message(f"Cache file: {CACHE_FILE}")
+
+    if not CACHE_FILE.exists():
+        raise FileNotFoundError(
+            f"Hash cache not found: {CACHE_FILE}. "
+            "This version of METRIC_ExactMatching.py is cache-only and will not "
+            "load the full Training.npy/Training_renamed.npy because the file uses "
+            "Python object dtype and is too memory-heavy for 8 GB RAM. "
+            "Please build the cache on a machine with more memory, then rerun this script."
+        )
+
+    try:
+        cached = np.load(CACHE_FILE, mmap_mode='r', allow_pickle=False)
+        log_message(f"Loaded hash cache with {len(cached)} entries")
+        return cached
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load hash cache from {CACHE_FILE}: {type(e).__name__}: {e}"
+        ) from e
+
+
+def contains_hash(sorted_hash_array, query_hash):
+    """Binary-search membership test on a sorted uint64 hash array."""
+    idx = np.searchsorted(sorted_hash_array, query_hash)
+    return idx < len(sorted_hash_array) and sorted_hash_array[idx] == query_hash
+
+
 def build_training_set_index(training_npy_path):
     """
-    Load Training.npy and build a set of all sequences for O(1) lookup.
-    
-    Args:
-        training_npy_path: Path to Training.npy
-        
+    Load Training.npy and build/load a compact hash cache for O(log n) lookup.
+
     Returns:
-        Set of sequence tuples
+        Sorted numpy array of uint64 hashes.
     """
-    print(f"\n{'='*70}")
-    print("Loading Training Data")
-    print(f"{'='*70}")
-    print(f"File: {training_npy_path}")
-    
+    log_message(f"\n{'='*70}")
+    log_message("Loading Training Data")
+    log_message(f"{'='*70}")
+    log_message(f"File: {training_npy_path}")
+    log_message("Step: checking whether training file exists")
+
     if not training_npy_path.exists():
         raise FileNotFoundError(
             f"Training file not found: {training_npy_path}. "
             "Expected Training_renamed.npy or Training.npy in the same directory as this script."
         )
 
-    try:
-        training_data = np.load(training_npy_path, allow_pickle=True)
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to load training data from {training_npy_path}: {e}"
-        ) from e
-
-    print(f"Shape: {training_data.shape}")
-    print(f"Total sequences: {len(training_data)}")
-    
-    print("\nBuilding sequence index...")
-    training_sequences = set()
-    skipped_invalid = 0
-    
-    for idx, seq in enumerate(tqdm(training_data, desc="Indexing sequences")):
-        try:
-            normalized = normalize_sequence(seq)
-            if normalized:  # Only add non-empty sequences
-                training_sequences.add(normalized)
-            else:
-                skipped_invalid += 1
-        except Exception as e:
-            skipped_invalid += 1
-            print(f"Warning: Skipping invalid training sequence at index {idx}: {e}")
-
-    if len(training_sequences) == 0:
-        print("Warning: No valid training sequences were found after normalization.")
-
-    if skipped_invalid > 0:
-        print(f"Warning: Skipped {skipped_invalid} invalid or empty training sequences.")
-
-    print(f"Unique sequences in training set: {len(training_sequences)}")
-    
-    return training_sequences
+    return load_training_hash_cache(training_npy_path)
 
 
 def analyze_inference_folder(folder_path, training_sequences):
@@ -147,13 +185,13 @@ def analyze_inference_folder(folder_path, training_sequences):
         Dictionary with analysis results
     """
     folder_name = folder_path.name
-    print(f"\n{'='*70}")
-    print(f"Analyzing: {folder_name}")
-    print(f"{'='*70}")
+    log_message(f"\n{'='*70}")
+    log_message(f"Analyzing: {folder_name}")
+    log_message(f"{'='*70}")
     
     # Collect all .txt files
     txt_files = sorted(folder_path.glob('run*.txt'))
-    print(f"Found {len(txt_files)} files")
+    log_message(f"Found {len(txt_files)} files")
     
     if not txt_files:
         return {
@@ -173,13 +211,15 @@ def analyze_inference_folder(folder_path, training_sequences):
     for txt_file in tqdm(txt_files, desc=f"Processing {folder_name}"):
         try:
             infer_seq = parse_txt_file(txt_file)
-            
+
             if not infer_seq:
                 error_count += 1
                 continue
+
+            infer_hash = hash_sequence(infer_seq)
             
             # Check if sequence exists in training set
-            if infer_seq in training_sequences:
+            if contains_hash(training_sequences, infer_hash):
                 memorized_count += 1
                 if len(memorized_examples) < 10:  # Save first 10 examples
                     memorized_examples.append({
@@ -191,7 +231,7 @@ def analyze_inference_folder(folder_path, training_sequences):
         
         except Exception as e:
             error_count += 1
-            print(f"  Error processing {txt_file.name}: {e}")
+            log_message(f"  Error processing {txt_file.name}: {e}")
     
     total = novel_count + memorized_count
     novelty_rate = (novel_count / total * 100) if total > 0 else 0
@@ -206,17 +246,17 @@ def analyze_inference_folder(folder_path, training_sequences):
         'memorized_examples': memorized_examples
     }
     
-    print(f"\nResults:")
-    print(f"  Total analyzed: {total}")
+    log_message(f"\nResults:")
+    log_message(f"  Total analyzed: {total}")
     if total > 0:
-        print(f"  Novel: {novel_count} ({novel_count/total*100:.1f}%)")
-        print(f"  Memorized: {memorized_count} ({memorized_count/total*100:.1f}%)")
+        log_message(f"  Novel: {novel_count} ({novel_count/total*100:.1f}%)")
+        log_message(f"  Memorized: {memorized_count} ({memorized_count/total*100:.1f}%)")
     else:
-        print("  Novel: 0 (0.0%)")
-        print("  Memorized: 0 (0.0%)")
+        log_message("  Novel: 0 (0.0%)")
+        log_message("  Memorized: 0 (0.0%)")
     if error_count > 0:
-        print(f"  Errors: {error_count}")
-    print(f"  Novelty Rate: {novelty_rate:.2f}%")
+        log_message(f"  Errors: {error_count}")
+    log_message(f"  Novelty Rate: {novelty_rate:.2f}%")
     
     return results
 
@@ -248,29 +288,31 @@ def find_inference_folders(base_dir):
 
 def main():
     start_time = time.time()
+
+    LOG_FILE.write_text("")
     
-    print("="*70)
-    print("EXACT SEQUENCE MATCHING NOVELTY METRIC")
-    print("="*70)
-    print("\nMethod: Binary classification")
-    print(f"  Training file: {TRAINING_NPY.name}")
-    print("  Novel:      Sequence NOT in training set")
-    print("  Memorized:  Exact match found in training set")
+    log_message("="*70)
+    log_message("EXACT SEQUENCE MATCHING NOVELTY METRIC")
+    log_message("="*70)
+    log_message("\nMethod: Binary classification")
+    log_message(f"  Training file: {TRAINING_NPY.name}")
+    log_message("  Novel:      Sequence NOT in training set")
+    log_message("  Memorized:  Exact match found in training set")
     
     # Load training data
     try:
         training_sequences = build_training_set_index(TRAINING_NPY)
     except Exception as e:
-        print(f"\nError: {e}")
+        log_message(f"\nError: {e}")
         return
     
     # Auto-detect inference folders
     inference_folders = find_inference_folders(BASE_DIR)
     if not inference_folders:
-        print(f"\nError: No inference folders with run*.txt files found in {BASE_DIR}")
+        log_message(f"\nError: No inference folders with run*.txt files found in {BASE_DIR}")
         return
     
-    print(f"\nDetected {len(inference_folders)} inference folder(s)")
+    log_message(f"\nDetected {len(inference_folders)} inference folder(s)")
     
     # Analyze each folder
     all_results = []
@@ -285,30 +327,30 @@ def main():
     novelty_rate_all = (novel_all / total_all * 100) if total_all > 0 else 0
     
     # Summary
-    print(f"\n{'='*70}")
-    print("SUMMARY - EXACT SEQUENCE MATCHING NOVELTY")
-    print(f"{'='*70}")
+    log_message(f"\n{'='*70}")
+    log_message("SUMMARY - EXACT SEQUENCE MATCHING NOVELTY")
+    log_message(f"{'='*70}")
     if len(all_results) > 1:
         for r in all_results:
-            print(f"  [{r['folder']}] total={r['total']} novel={r['novel']} ({r['novelty_rate']:.1f}%)")
-        print(f"{'─'*70}")
-    print(f"Total generated: {total_all}")
+            log_message(f"  [{r['folder']}] total={r['total']} novel={r['novel']} ({r['novelty_rate']:.1f}%)")
+        log_message(f"{'─'*70}")
+    log_message(f"Total generated: {total_all}")
     if total_all > 0:
-        print(f"Novel:           {novel_all} ({novelty_rate_all:.2f}%)")
+        log_message(f"Novel:           {novel_all} ({novelty_rate_all:.2f}%)")
     else:
-        print("Novel:           0 (0.00%)")
+        log_message("Novel:           0 (0.00%)")
     if total_all > 0:
-        print(f"Memorized:       {memorized_all} ({memorized_all/total_all*100:.2f}%)")
+        log_message(f"Memorized:       {memorized_all} ({memorized_all/total_all*100:.2f}%)")
     else:
-        print("Memorized:       0 (0.00%)")
+        log_message("Memorized:       0 (0.00%)")
     errors_all = sum(r.get('errors', 0) for r in all_results)
     if errors_all > 0:
-        print(f"Errors:          {errors_all}")
+        log_message(f"Errors:          {errors_all}")
 
     valid_total_all = sum(r['total'] for r in all_results if r['total'] > 0)
     if valid_total_all == 0:
-        print("\nWarning: All inference folders produced 0 valid sequences.")
-        print("Novelty rate is reported as 0.00% to keep the output safe and avoid divide-by-zero.")
+        log_message("\nWarning: All inference folders produced 0 valid sequences.")
+        log_message("Novelty rate is reported as 0.00% to keep the output safe and avoid divide-by-zero.")
     
     # Save results as JSON
     output_file = BASE_DIR / 'NOVELTY_ExactMatching_Results.json'
@@ -318,7 +360,8 @@ def main():
         'description': 'Binary novelty: sequence not in training set = novel',
         'training_data': {
             'file': str(TRAINING_NPY.name),
-            'unique_sequences': len(training_sequences)
+            'unique_hashes': len(training_sequences),
+            'cache_file': str(CACHE_FILE.name)
         },
         'inference_folders': [str(f.name) for f in inference_folders],
         'per_folder_results': all_results,
@@ -335,16 +378,16 @@ def main():
     with open(output_file, 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"\n{'='*70}")
-    print("RESULTS SAVED")
-    print(f"{'='*70}")
-    print(f"  Output file: {output_file}")
-    print(f"  Computation time: {time.time() - start_time:.1f}s")
+    log_message(f"\n{'='*70}")
+    log_message("RESULTS SAVED")
+    log_message(f"{'='*70}")
+    log_message(f"  Output file: {output_file}")
+    log_message(f"  Computation time: {time.time() - start_time:.1f}s")
     
-    print(f"\nExact Sequence Matching Novelty analysis complete")
-    print(f"Method: Binary classification (novel vs memorized)")
-    print(f"Training set: {len(training_sequences):,} unique sequences")
-    print(f"Novelty rate: {novelty_rate_all:.2f}%")
+    log_message(f"\nExact Sequence Matching Novelty analysis complete")
+    log_message(f"Method: Binary classification (novel vs memorized)")
+    log_message(f"Training set: {len(training_sequences):,} unique sequences")
+    log_message(f"Novelty rate: {novelty_rate_all:.2f}%")
 
 
 if __name__ == '__main__':

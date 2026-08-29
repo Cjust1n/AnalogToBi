@@ -1,0 +1,30 @@
+{
+  "method": "exact_sequence_matching",
+  "description": "Binary novelty: sequence not in training set = novel",
+  "training_data": {
+    "file": "Training_renamed.npy",
+    "unique_sequences": 356050
+  },
+  "inference_folders": [
+    "Inference_CIRCUIT_Opamp_masked"
+  ],
+  "per_folder_results": [
+    {
+      "folder": "Inference_CIRCUIT_Opamp_masked",
+      "total": 1000,
+      "novel": 1000,
+      "memorized": 0,
+      "errors": 0,
+      "novelty_rate": 100.0,
+      "memorized_examples": []
+    }
+  ],
+  "aggregate": {
+    "total": 1000,
+    "novel": 1000,
+    "memorized": 0,
+    "novelty_rate": 100.0
+  },
+  "timestamp": "2026-08-29 12:43:49",
+  "computation_time_seconds": 108.07354855537415
+}
