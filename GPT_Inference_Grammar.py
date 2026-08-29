@@ -50,9 +50,9 @@ from Models.GPT import GPTLanguageModel
 block_size = 1024 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(device)
-n_embd = 384
-n_head = 6
-n_layer = 6
+n_embd = 256
+n_head = 4
+n_layer = 4
 dropout = 0.2
 
 filename = 'Inference'

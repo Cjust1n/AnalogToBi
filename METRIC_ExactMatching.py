@@ -61,7 +61,15 @@ def normalize_sequence(seq):
         Tuple of tokens (excluding TRUNCATE)
     """
     tokens = []
-    for token in seq:
+    if seq is None:
+        raise ValueError("Encountered None sequence")
+
+    try:
+        iterator = iter(seq)
+    except TypeError as e:
+        raise TypeError(f"Sequence is not iterable: {type(seq).__name__}") from e
+
+    for token in iterator:
         token_str = str(token).strip()
         if token_str == 'TRUNCATE' or token_str == '':
             break
@@ -85,18 +93,43 @@ def build_training_set_index(training_npy_path):
     print(f"{'='*70}")
     print(f"File: {training_npy_path}")
     
-    training_data = np.load(training_npy_path, allow_pickle=True)
+    if not training_npy_path.exists():
+        raise FileNotFoundError(
+            f"Training file not found: {training_npy_path}. "
+            "Expected Training_renamed.npy or Training.npy in the same directory as this script."
+        )
+
+    try:
+        training_data = np.load(training_npy_path, allow_pickle=True)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load training data from {training_npy_path}: {e}"
+        ) from e
+
     print(f"Shape: {training_data.shape}")
     print(f"Total sequences: {len(training_data)}")
     
     print("\nBuilding sequence index...")
     training_sequences = set()
+    skipped_invalid = 0
     
-    for seq in tqdm(training_data, desc="Indexing sequences"):
-        normalized = normalize_sequence(seq)
-        if normalized:  # Only add non-empty sequences
-            training_sequences.add(normalized)
-    
+    for idx, seq in enumerate(tqdm(training_data, desc="Indexing sequences")):
+        try:
+            normalized = normalize_sequence(seq)
+            if normalized:  # Only add non-empty sequences
+                training_sequences.add(normalized)
+            else:
+                skipped_invalid += 1
+        except Exception as e:
+            skipped_invalid += 1
+            print(f"Warning: Skipping invalid training sequence at index {idx}: {e}")
+
+    if len(training_sequences) == 0:
+        print("Warning: No valid training sequences were found after normalization.")
+
+    if skipped_invalid > 0:
+        print(f"Warning: Skipped {skipped_invalid} invalid or empty training sequences.")
+
     print(f"Unique sequences in training set: {len(training_sequences)}")
     
     return training_sequences
@@ -175,8 +208,12 @@ def analyze_inference_folder(folder_path, training_sequences):
     
     print(f"\nResults:")
     print(f"  Total analyzed: {total}")
-    print(f"  Novel: {novel_count} ({novel_count/total*100:.1f}%)")
-    print(f"  Memorized: {memorized_count} ({memorized_count/total*100:.1f}%)")
+    if total > 0:
+        print(f"  Novel: {novel_count} ({novel_count/total*100:.1f}%)")
+        print(f"  Memorized: {memorized_count} ({memorized_count/total*100:.1f}%)")
+    else:
+        print("  Novel: 0 (0.0%)")
+        print("  Memorized: 0 (0.0%)")
     if error_count > 0:
         print(f"  Errors: {error_count}")
     print(f"  Novelty Rate: {novelty_rate:.2f}%")
@@ -221,7 +258,11 @@ def main():
     print("  Memorized:  Exact match found in training set")
     
     # Load training data
-    training_sequences = build_training_set_index(TRAINING_NPY)
+    try:
+        training_sequences = build_training_set_index(TRAINING_NPY)
+    except Exception as e:
+        print(f"\nError: {e}")
+        return
     
     # Auto-detect inference folders
     inference_folders = find_inference_folders(BASE_DIR)
@@ -252,11 +293,22 @@ def main():
             print(f"  [{r['folder']}] total={r['total']} novel={r['novel']} ({r['novelty_rate']:.1f}%)")
         print(f"{'─'*70}")
     print(f"Total generated: {total_all}")
-    print(f"Novel:           {novel_all} ({novelty_rate_all:.2f}%)")
-    print(f"Memorized:       {memorized_all} ({memorized_all/total_all*100:.2f}%)" if total_all > 0 else "Memorized:       0")
+    if total_all > 0:
+        print(f"Novel:           {novel_all} ({novelty_rate_all:.2f}%)")
+    else:
+        print("Novel:           0 (0.00%)")
+    if total_all > 0:
+        print(f"Memorized:       {memorized_all} ({memorized_all/total_all*100:.2f}%)")
+    else:
+        print("Memorized:       0 (0.00%)")
     errors_all = sum(r.get('errors', 0) for r in all_results)
     if errors_all > 0:
         print(f"Errors:          {errors_all}")
+
+    valid_total_all = sum(r['total'] for r in all_results if r['total'] > 0)
+    if valid_total_all == 0:
+        print("\nWarning: All inference folders produced 0 valid sequences.")
+        print("Novelty rate is reported as 0.00% to keep the output safe and avoid divide-by-zero.")
     
     # Save results as JSON
     output_file = BASE_DIR / 'NOVELTY_ExactMatching_Results.json'

@@ -20,15 +20,15 @@ from datetime import datetime, timedelta
 # =========================
 # Hyperparameters
 # =========================
-batch_size   = 64
+batch_size   = 8
 block_size   = 1024
 max_iters    = 100_000
 eval_interval= 500
-eval_iters   = 200
+eval_iters   = 50
 learning_rate= 3e-4
-n_embd       = 384
-n_head       = 6
-n_layer      = 6
+n_embd       = 256
+n_head       = 4
+n_layer      = 4
 dropout      = 0.2
 filename     = 'Pretrain'
 Trainingdata = 'Training_renamed.npy'
