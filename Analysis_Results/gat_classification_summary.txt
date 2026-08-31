@@ -4,14 +4,73 @@ GAT CIRCUIT CLASSIFICATION SUMMARY
 
 Circuit Type                        Right %      Right/Total    
 --------------------------------------------------------------------------------
+CIRCUIT_ADC_DAC_masked               55.90%      559/1000
+CIRCUIT_Comparator_masked            10.10%      101/1000
+CIRCUIT_Filter_masked                71.70%      717/1000
+CIRCUIT_Mirror_masked                66.10%      661/1000
 CIRCUIT_Opamp_masked                 90.00%      900/1000
+CIRCUIT_PLL_masked                   64.04%      146/228
+CIRCUIT_Switched_Cap_masked           6.80%      68/1000
+CIRCUIT_Voltage_Regulator_masked     45.30%      453/1000
 --------------------------------------------------------------------------------
-OVERALL                              90.00%      900/1000
+OVERALL                              49.88%      3605/7228
 
 ================================================================================
 DETAILED PREDICTION DISTRIBUTION
 ================================================================================
 
+
+CIRCUIT_ADC_DAC_masked:
+----------------------------------------
+  * ADC_DAC                         559 (55.90%)
+    Mirror                          138 (13.80%)
+    Opamp                           128 (12.80%)
+    PLL                             125 (12.50%)
+    General                          32 ( 3.20%)
+    Filter                            7 ( 0.70%)
+    Power_Amp                         7 ( 0.70%)
+    Switched_Cap                      4 ( 0.40%)
+
+CIRCUIT_Comparator_masked:
+----------------------------------------
+    Opamp                           507 (50.70%)
+    Mirror                          164 (16.40%)
+  * Comparator                      101 (10.10%)
+    General                          93 ( 9.30%)
+    Oscillator                       88 ( 8.80%)
+    Bandgap_Ref                      19 ( 1.90%)
+    Filter                           11 ( 1.10%)
+    PLL                               8 ( 0.80%)
+    Voltage_Regulator                 6 ( 0.60%)
+    Power_Amp                         2 ( 0.20%)
+    LDO                               1 ( 0.10%)
+
+CIRCUIT_Filter_masked:
+----------------------------------------
+  * Filter                          717 (71.70%)
+    Oscillator                       91 ( 9.10%)
+    Mirror                           85 ( 8.50%)
+    General                          63 ( 6.30%)
+    Opamp                            26 ( 2.60%)
+    Mixer                             8 ( 0.80%)
+    Comparator                        8 ( 0.80%)
+    Switched_Cap                      1 ( 0.10%)
+    PLL                               1 ( 0.10%)
+
+CIRCUIT_Mirror_masked:
+----------------------------------------
+  * Mirror                          661 (66.10%)
+    Opamp                           198 (19.80%)
+    General                          78 ( 7.80%)
+    Bandgap_Ref                      27 ( 2.70%)
+    Filter                           11 ( 1.10%)
+    Oscillator                        8 ( 0.80%)
+    Comparator                        6 ( 0.60%)
+    PLL                               5 ( 0.50%)
+    ADC_DAC                           2 ( 0.20%)
+    Voltage_Regulator                 2 ( 0.20%)
+    Switched_Cap                      1 ( 0.10%)
+    Power_Amp                         1 ( 0.10%)
 
 CIRCUIT_Opamp_masked:
 ----------------------------------------
@@ -22,7 +81,45 @@ CIRCUIT_Opamp_masked:
     Oscillator                        4 ( 0.40%)
     Comparator                        1 ( 0.10%)
 
+CIRCUIT_PLL_masked:
+----------------------------------------
+  * PLL                             146 (64.04%)
+    Oscillator                       27 (11.84%)
+    Opamp                            20 ( 8.77%)
+    General                          14 ( 6.14%)
+    Power_Amp                         9 ( 3.95%)
+    Mirror                            8 ( 3.51%)
+    ADC_DAC                           2 ( 0.88%)
+    Comparator                        2 ( 0.88%)
+
+CIRCUIT_Switched_Cap_masked:
+----------------------------------------
+    Opamp                           535 (53.50%)
+    General                         213 (21.30%)
+  * Switched_Cap                     68 ( 6.80%)
+    Mirror                           68 ( 6.80%)
+    Oscillator                       35 ( 3.50%)
+    Power_Amp                        33 ( 3.30%)
+    PLL                              23 ( 2.30%)
+    Filter                           18 ( 1.80%)
+    LDO                               3 ( 0.30%)
+    Comparator                        3 ( 0.30%)
+    Voltage_Regulator                 1 ( 0.10%)
+
+CIRCUIT_Voltage_Regulator_masked:
+----------------------------------------
+  * Voltage_Regulator               453 (45.30%)
+    Opamp                           210 (21.00%)
+    Oscillator                      151 (15.10%)
+    Mirror                          108 (10.80%)
+    General                          56 ( 5.60%)
+    Bandgap_Ref                      13 ( 1.30%)
+    Comparator                        6 ( 0.60%)
+    Switched_Cap                      1 ( 0.10%)
+    LDO                               1 ( 0.10%)
+    Filter                            1 ( 0.10%)
+
 ================================================================================
-Total Circuits Classified: 1000
-Correctly Classified: 900
-Overall Accuracy: 90.00%
+Total Circuits Classified: 7228
+Correctly Classified: 3605
+Overall Accuracy: 49.88%
