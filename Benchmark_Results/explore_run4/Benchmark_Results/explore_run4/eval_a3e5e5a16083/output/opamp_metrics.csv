@@ -1,0 +1,14 @@
+graph_file,netlist_path,circuit_name,simulation_ok,error
+/home/christopher-justin/Documents/Tugas-Akhir/AnalogToBi/Inference_CIRCUIT_Opamp_masked/run0.txt,Benchmark_Results/explore_run4/eval_a3e5e5a16083/output/run0.cir,CIRCUIT_Opamp,False,"Ngspice failed with code 1. stdout=******
+** ngspice-36 : Circuit level simulation program
+** The U. C. Berkeley CAD Group
+** Copyright 1985-1994, Regents of the University of California.
+** Copyright 2001-2020, The ngspice team.
+** Please get your ngspice manual from http://ngspice.sourceforge.net/docs.html
+** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+** Creation Date: Sun Jan 23 04:39:52 UTC 2022
+******
+
+Batch mode
+
+Comments and warnings go to log-file: /home/christopher-justin/Documents/Tugas-Akhir/AnalogToBi/Benchmark_Results/explore_run4/Benchmark_Results/explore_run4/eval_a3e5e5a16083/output/run0.log stderr="

@@ -1,177 +1,190 @@
 # AnalogToBi
 
-**AnalogToBi: Device-Level Analog Circuit Topology Generation via Bipartite Graph and Grammar-Guided Decoding**
+AnalogToBi adalah pipeline untuk memproses rangkaian analog dari netlist SPICE menjadi representasi bipartite graph, melatih model GPT dan GAT, lalu melakukan inference dengan grammar-guided decoding.
 
-AnalogToBi is a framework for automatic generation of device-level analog circuit topologies. It trains a compact decoder-only Transformer (11.3M parameters) from scratch and generates electrically valid, novel circuit topologies.
+## Gambaran Alur
 
-## Key Features
+Urutan kerja yang paling umum adalah:
 
-- **Circuit type conditioning**: Divide datasets as 15 circuit categories (OpAmp, LDO, Comparator, etc.)
-- **Device renaming augmentation**: Randomizes device numbering to prevent memorization while preserving topology
-- **Bipartite graph representation**: Decouples devices and nets into distinct node types for compact structural description
-- **Grammar-guided decoding**: State machine-based constrained decoding enforces electrical validity during generation
+1. Netlist `.cir` di `Dataset/` diproses menjadi graph bipartit.
+2. Graph diubah menjadi urutan token `node -> edge -> node -> ...`.
+3. Token diberi label tipe rangkaian, lalu dibagi menjadi data latih dan validasi.
+4. Data `Training_renamed.npy` dan `Validation_renamed.npy` dipakai untuk pretraining GPT.
+5. Model hasil training dipakai untuk inference terstruktur dengan grammar.
+6. Hasil generasi bisa dievaluasi dengan metrik validity, novelty, dan exact matching.
 
+## Representasi Data
 
-## Bipartite Graph Representation
+Format urutan token yang dipakai proyek ini adalah:
 
-```
-Node Types:
-  - Device nodes: NM1, PM1, NPN1, R1, C1, L1, DIO1, ...
-  - Net nodes: VIN1, VOUT1, NET1, VDD, VSS, ...
-
-Typed Edges (pin-level connections):
-  - MOSFET: M_G, M_D, M_S, M_B, M_GD, M_SB, M_BDGS, ...
-  - BJT:    B_B, B_C, B_E, B_BC, B_BCE, ...
-  - Passive: R_C, C_C, L_C
-  - Diode:  D_P, D_N, D_NP
-
-Sequence: CIRCUIT_Opamp -> VSS -> M_SB -> NM1 -> M_D -> VOUT1 -> ... -> TRUNCATE
+```text
+CIRCUIT_Opamp -> VSS -> M_SB -> NM1 -> M_D -> VOUT1 -> ... -> TRUNCATE
 ```
 
-## Environment Setup
+Komponen utamanya:
+
+- `CIRCUIT_*` = token tipe rangkaian
+- `NM*`, `PM*`, `NPN*`, `PNP*`, `R*`, `C*`, `L*`, `DIO*` = node device
+- `VIN*`, `VOUT*`, `VB*`, `VDD`, `VSS`, `NET*` = node net/port
+- `M_*`, `B_*`, `R_C`, `C_C`, `L_C`, `D_*` = token koneksi/pin
+- `TRUNCATE` = penanda akhir sequence
+
+## Setup Environment
 
 ```bash
 conda env create -f environment.yml
 conda activate AnalogToBi
 ```
 
-## Dataset
+## Struktur Data
 
-The `Dataset/` directory contains raw analog circuit samples. Each numbered folder includes:
+Folder `Dataset/` berisi sample mentah. Umumnya satu folder bernomor berisi:
 
-| File | Description |
-|------|-------------|
-| `{ID}.cir` | SPICE netlist |
-| `Book{ID}.png` | Textbook/paper screenshot |
-| `Cadence{ID}.png` | Cadence schematic screenshot |
-| `Pagenumber{ID}.txt` | Page number or paper reference |
-| `Port{ID}.txt` | Netlist port information |
+| File | Fungsi |
+|---|---|
+| `{ID}.cir` | Netlist SPICE asli |
+| `Graph_Bipart{ID}.csv` | Hasil graph bipartit |
+| `Book{ID}.png` | Cuplikan sumber/paper |
+| `Cadence{ID}.png` | Cuplikan schematic Cadence |
+| `Pagenumber{ID}.txt` | Referensi halaman |
+| `Port{ID}.txt` | Informasi port netlist |
 
-## Quick Start
+## Alur Kerja
 
-### 1. Preprocessing
-
-**Step 1: Convert SPICE netlists to bipartite graphs**
+### 1. Bangun graph bipartit
 
 ```bash
 python PREPROCESSING_Bipartite.py
 ```
-Parses `.cir` files and generates typed-edge adjacency matrices (`Graph_Bipart{ID}.csv`).
 
-**Step 2: Convert graphs to sequences with augmentation**
+Script ini membaca netlist SPICE dari `Dataset/` dan membentuk representasi graph bipartit.
+
+### 2. Ubah graph menjadi sequence token
 
 ```bash
 python PREPROCESSING_Augmentation_Bipart.py
 ```
-Converts bipartite graphs to token sequences via randomized graph traversal. Generates multiple valid sequences per circuit.
 
-**Step 3: Add circuit type tokens**
+Script ini melakukan traversing graph dan menghasilkan beberapa variasi sequence yang valid untuk satu rangkaian.
+
+### 3. Tambahkan token tipe rangkaian
 
 ```bash
 python PREPROCESSING_Add_Circuit_Types.py
 ```
-Prepends circuit type tokens (e.g., `CIRCUIT_Opamp`) to each sequence for conditional generation.
 
-**Step 4: Prepare GPT training dataset**
+Token seperti `CIRCUIT_Opamp` dipasang di awal sequence agar model belajar secara conditional berdasarkan jenis rangkaian.
+
+### 4. Bentuk dataset GPT
 
 ```bash
 python PREPROCESSING_GPT_dataset.py
 ```
-Performs 90/10 stratified split preserving circuit type distribution for GPT training.
 
-**Step 5: Device renaming augmentation**
+Membuat split train/validation untuk pretraining GPT.
+
+### 5. Augmentasi renaming device
 
 ```bash
 python PREPROCESSING_Renaming.py --input Training.npy --output Training_renamed.npy
+python PREPROCESSING_Renaming.py --input Validation.npy --output Validation_renamed.npy
 ```
-Randomizes device numbering (e.g., NM1 -> NM5) while preserving topology to prevent memorization. Automatically processes `Validation.npy` → `Validation_renamed.npy` when using default arguments.
 
-**Step 6: Prepare GAT training dataset**
+Langkah ini mengacak penomoran device, misalnya `NM1` menjadi `NM5`, tanpa mengubah topologi.
+
+### 6. Bentuk dataset GAT
 
 ```bash
 python PREPROCESSING_GAT_dataset.py
 ```
-Performs circuit-ID-based 90/10 split to prevent data leakage in GAT training.
 
-**Step 7: Device renaming augmentation for GAT dataset**
+Membuat dataset untuk classifier GAT dengan split berbasis ID rangkaian.
+
+### 7. Renaming untuk dataset GAT
 
 ```bash
 python PREPROCESSING_Renaming.py --input Training_GAT.npy --output Training_GAT_renamed.npy
 python PREPROCESSING_Renaming.py --input Validation_GAT.npy --output Validation_GAT_renamed.npy
 ```
-Applies device renaming augmentation to the GAT dataset.
 
-### 2. Training
-
-**GPT Pretraining**
+### 8. Pretrain GPT
 
 ```bash
 python GPT_Pretrain.py
 ```
-Trains a decoder-only Transformer on circuit sequences with autoregressive token prediction.
 
-**GAT Classifier Training**
+Model ini belajar memprediksi token rangkaian secara autoregressive.
+
+### 9. Train GAT classifier
 
 ```bash
 python GAT_Train.py
 ```
-Trains a Graph Attention Network classifier for circuit type classification.
 
-### 3. Inference
+Model ini memprediksi kategori rangkaian dari graph bipartit.
 
-**Grammar-guided circuit generation**
+### 10. Inference dengan grammar
 
 ```bash
 python GPT_Inference_Grammar.py CIRCUIT_Opamp
 ```
-Generates circuit topologies using a 6-state grammar that enforces bipartite structure and electrical validity during decoding.
 
-### 4. Evaluation Metrics
+Contoh di atas menghasilkan topologi untuk kategori OpAmp.
 
-**GAT batch classification**
+### 11. Evaluasi hasil
 
 ```bash
 python GAT_Inference_ALL.py
-```
-Classifies all generated circuits and reports accuracy per circuit type.
-
-**Validity + Novelty (combined)**
-
-```bash
+python METRIC_Validity.py
+python METRIC_Novelty.py
 python METRIC_Valid_n_Novel.py
-```
-Reports combined ERC pass rate and novelty per circuit type.
-
-**Exact sequence matching novelty**
-
-```bash
 python METRIC_ExactMatching.py
 ```
-Measures novelty by checking whether generated sequences exactly match any sequence in the training set.
 
+## Perintah Terminal untuk User Baru
 
-## Project Structure
+Jika ingin mulai dari nol, urutan praktisnya:
 
+```bash
+conda env create -f environment.yml
+conda activate AnalogToBi
+cd AnalogToBi
+python PREPROCESSING_Bipartite.py
+python PREPROCESSING_Augmentation_Bipart.py
+python PREPROCESSING_Add_Circuit_Types.py
+python PREPROCESSING_GPT_dataset.py
+python PREPROCESSING_Renaming.py --input Training.npy --output Training_renamed.npy
+python PREPROCESSING_Renaming.py --input Validation.npy --output Validation_renamed.npy
+python GPT_Pretrain.py
+python GPT_Inference_Grammar.py CIRCUIT_Opamp
 ```
-AnalogToBi/
-├── Dataset/                                  # Raw circuit dataset
-├── Models/
-│   ├── GPT.py                                # GPT model architecture
-│   └── GAT.py                                # GAT classifier architecture
-├── PREPROCESSING_Bipartite.py                # Step 1: Netlist to bipartite graph
-├── PREPROCESSING_Augmentation_Bipart.py      # Step 2: Graph to sequence + augmentation
-├── PREPROCESSING_Add_Circuit_Types.py        # Step 3: Circuit type token injection
-├── PREPROCESSING_GPT_dataset.py              # Step 4: Stratified train/val split (GPT)
-├── PREPROCESSING_Renaming.py                 # Step 5: Device renaming augmentation
-├── PREPROCESSING_GAT_dataset.py              # Step 6: Circuit-ID-based split (GAT)
-├── GPT_Pretrain.py                           # GPT training
-├── GAT_Train.py                              # GAT classifier training
-├── GPT_Inference_Grammar.py                  # Grammar-guided generation
-├── GAT_Inference_ALL.py                      # Batch GAT classification
-├── METRIC_Validity.py                        # ERC pass rate evaluation
-├── METRIC_Novelty.py                         # Topology novelty evaluation
-├── METRIC_Valid_n_Novel.py                   # Combined validity + novelty
-├── METRIC_ExactMatching.py                   # Exact sequence matching novelty
-├── ERC.py                                    # Electrical rule checker
-└── environment.yml                           # Conda environment
+
+Jika ingin melatih classifier GAT juga:
+
+```bash
+python PREPROCESSING_GAT_dataset.py
+python PREPROCESSING_Renaming.py --input Training_GAT.npy --output Training_GAT_renamed.npy
+python PREPROCESSING_Renaming.py --input Validation_GAT.npy --output Validation_GAT_renamed.npy
+python GAT_Train.py
 ```
+
+## File Penting
+
+- [`PREPROCESSING_Bipartite.py`](./PREPROCESSING_Bipartite.py)
+- [`PREPROCESSING_Augmentation_Bipart.py`](./PREPROCESSING_Augmentation_Bipart.py)
+- [`PREPROCESSING_Add_Circuit_Types.py`](./PREPROCESSING_Add_Circuit_Types.py)
+- [`PREPROCESSING_GPT_dataset.py`](./PREPROCESSING_GPT_dataset.py)
+- [`PREPROCESSING_Renaming.py`](./PREPROCESSING_Renaming.py)
+- [`GPT_Pretrain.py`](./GPT_Pretrain.py)
+- [`GPT_Inference_Grammar.py`](./GPT_Inference_Grammar.py)
+- [`GAT_Train.py`](./GAT_Train.py)
+- [`METRIC_Validity.py`](./METRIC_Validity.py)
+- [`METRIC_Novelty.py`](./METRIC_Novelty.py)
+- [`METRIC_Valid_n_Novel.py`](./METRIC_Valid_n_Novel.py)
+- [`METRIC_ExactMatching.py`](./METRIC_ExactMatching.py)
+
+## Catatan
+
+- Jalankan perintah dari folder `AnalogToBi/` agar path relatif cocok.
+- Beberapa skrip mengharapkan file hasil preprocessing seperti `Training.npy`, `Validation.npy`, `Training_renamed.npy`, dan `Validation_renamed.npy` sudah tersedia.
+- Untuk inference dan evaluasi, pastikan model checkpoint yang dibutuhkan juga sudah dilatih terlebih dulu.

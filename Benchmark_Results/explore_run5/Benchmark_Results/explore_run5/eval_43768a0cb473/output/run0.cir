@@ -1,0 +1,112 @@
+* Auto-generated SPICE deck for op-amp evaluation
+.param sw_stat_global=0 mc_skew=1 res_mc_skew=1 cap_mc_skew=1
+.param fnoicor=0
+.lib /usr/share/pdk/gf180mcuD/libs.tech/ngspice/sm141064.spice typical
+
+.subckt CIRCUIT_Opamp VIN1 VIN2 VOUT1 VOUT2 VDD VSS VB1 VB2 VB3
+M_NM2 VOUT1 VB1 NET1 VSS nfet_03v3.0 w=10u l=1u
+M_PM10 VOUT1 VB2 NET2 VDD pfet_03v3.0 w=15u l=1u
+M_PM7 VOUT2 VB3 VDD VDD pfet_03v3.0 w=15u l=1u
+M_NM17 VOUT2 VB1 VSS VSS nfet_03v3.0 w=10u l=1u
+M_NM7 NET1 VIN1 VSS VSS nfet_03v3.0 w=10u l=1u
+M_PM33 NET2 VB3 VDD VDD pfet_03v3.0 w=15u l=1u
+M_NM35 NET2 VIN2 NET1 VSS nfet_03v3.0 w=10u l=1u
+M_NM24 0 0 VSS VSS nfet_03v3.0 w=10u l=1u
+M_NM26 NET1 VB3 VSS VSS nfet_03v3.0 w=10u l=1u
+.ends CIRCUIT_Opamp
+
+* Auto-generated op-amp testbench
+.param VDDVAL=1.8 VCM=0.9 VIN_LO=0.8 VIN_HI=1
+.param VINP_AC=0.5 VINN_AC=-0.5 VDD_AC=0
+.param STEP_AMP=0.02 TSTOP=5e-06 TR_STP=1e-09
+.param STEP_DELAY=1e-06 STEP_RISE=1e-09 STEP_FALL=1e-09 STEP_WIDTH=1e-06 STEP_PERIOD=2e-06
+VVDD VDD 0 {VDDVAL} AC {VDD_AC}
+VVSS VSS 0 0
+VINP VINP 0 DC {VCM} AC {VINP_AC} PULSE(0.89 0.91 {STEP_DELAY} {STEP_RISE} {STEP_FALL} {STEP_WIDTH} {STEP_PERIOD})
+VINN VINN 0 DC {VCM} AC {VINN_AC}
+CL VOUT 0 1e-12
+RL VOUT 0 100000
+VVB1 VB1 0 0.9
+VVB2 VB2 0 0.9
+VVB3 VB3 0 0.9
+
+* Port order: VIN1 VIN2 VOUT1 VOUT2 VDD VSS VB1 VB2 VB3
+* Connected nodes: VINP VINN VOUT VOUT2 VDD VSS VB1 VB2 VB3
+XUUT VINP VINN VOUT VOUT2 VDD VSS VB1 VB2 VB3 CIRCUIT_Opamp
+
+.control
+set noaskquit
+set filetype=ascii
+option method=gear reltol=1e-4 abstol=1e-12 vntol=1e-6 maxord=2 gmin=1e-12 srcsteps=10 itl1=200 itl4=200
+
+* Operating point
+op
+print v(vout) v(vinp) v(vinn) i(vvdd)
+
+* DC sweep for low-frequency gain and input offset voltage
+dc VINP 0.8 1 0.001
+meas dc VOUT_LO find v(vout) at=0.8
+meas dc VOUT_HI find v(vout) at=1
+let AV = (VOUT_HI-VOUT_LO)/(1-0.8)
+print VOUT_LO VOUT_HI AV
+meas dc VINP_at_VCM when v(vout)=0.9
+let VOS = VINP_at_VCM - 0.9
+let OFFSET = VOS
+print VOS OFFSET
+
+* AC open-loop gain, GBW, and phase margin
+* ac disabled
+* meas ac AV0 disabled
+* meas ac UGB disabled
+* meas ac PH_UGB disabled
+* let PM disabled
+* print ac summary disabled
+
+* Common-mode rejection ratio
+* alterparam CMRR disabled
+* reset cmrr disabled
+* ac cmrr disabled
+* meas ac ACMR disabled
+* let CMRR disabled
+* print CMRR disabled
+
+* Power-supply rejection ratio
+* alterparam PSRR disabled
+* reset psrr disabled
+* ac psrr disabled
+* meas ac APSRR disabled
+* let PSRR disabled
+* print PSRR disabled
+
+* Output noise
+* alterparam noise disabled
+* reset noise disabled
+* noise disabled
+* meas noise NOISE disabled
+* print NOISE disabled
+
+* Transient measurements: settling time, slew rate, average power dissipation
+* tran disabled
+* meas tran V_PRE disabled
+* meas tran V_POST disabled
+* let VCM_MEAS disabled
+* let STEP_DELAY_MEAS disabled
+* let V_STEP disabled
+* let V_TARGET disabled
+* let V_LOW disabled
+* let V_HIGH disabled
+* meas tran T_RISE disabled
+* meas tran T_SETTLE disabled
+* meas tran SR_POS disabled
+* meas tran SR_NEG disabled
+* meas tran I_VDD disabled
+* meas tran I_INRUSH disabled
+* let P_DISS disabled
+* let OFFSET_T disabled
+* wrdata disabled
+* print tran summary disabled
+
+quit
+.endc
+
+.end

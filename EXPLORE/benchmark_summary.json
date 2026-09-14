@@ -1,0 +1,250 @@
+{
+  "Greedy": [
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.702500581741333
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.010093450546264648
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.011385202407836914
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.011566400527954102
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.013948440551757812
+    }
+  ],
+  "Sampling+Filtering": [
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.02011251449584961
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM9"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.01781463623046875
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM9"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.013975381851196289
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "M_BS",
+        "NM5"
+      ],
+      "is_erc_clean": false,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.023654460906982422
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS",
+        "R_C",
+        "R1"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.017472267150878906
+    }
+  ],
+  "MCTS-Base": [
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.1136937141418457
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.09266924858093262
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.12757205963134766
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.10005068778991699
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 0.10641932487487793
+    }
+  ],
+  "EXPLORE": [
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 1.736069679260254
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 1.8116083145141602
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 2.0626752376556396
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 1.9836139678955078
+    },
+    {
+      "sequence": [
+        "CIRCUIT_Opamp",
+        "VSS"
+      ],
+      "is_erc_clean": true,
+      "ports_ok": false,
+      "sim_ok": false,
+      "spice_metrics": {},
+      "elapsed_sec": 2.1886441707611084
+    }
+  ]
+}
